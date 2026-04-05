@@ -4,12 +4,9 @@
     "slug": "proresume",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#4A90E2"
+      "backgroundColor": "#191c1f"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -17,24 +14,10 @@
       "bundleIdentifier": "com.proresume.app"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#4A90E2"
-      },
       "package": "com.proresume.app"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      [
-        "expo-auth-session",
-        {
-          "google": {
-            "clientId": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
-          }
-        }
-      ]
-    ]
+      "favicon": "./node_modules/expo/src/assets/favicon.png"
+    }
   }
 }

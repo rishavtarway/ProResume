@@ -1,7 +1,64 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView } from 'react-native';
-import { templates } from '../data/templates';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useResumeStore } from '../store/resumeStore';
+
+const COLORS = {
+  dark: '#191c1f',
+  white: '#ffffff',
+  surface: '#f4f4f4',
+  blue: '#494fdf',
+  teal: '#00a87e',
+  danger: '#e23b4a',
+  warning: '#ec7e00',
+  midSlate: '#505a63',
+  coolGray: '#8d969e',
+  grayTone: '#c9c9cd',
+};
+
+const TEMPLATES = [
+  {
+    id: 'modern',
+    name: 'Modern Pro',
+    description: 'Clean, minimalist design with bold typography. Perfect for tech & startup roles.',
+    imageUrl: 'https://raw.githubusercontent.com/rishavtarway/ProResume/main/Resume_Images/Demo1.jpeg',
+    features: ['Clean layout', 'Bold headers', 'Skill bars', 'Timeline style'],
+  },
+  {
+    id: 'classic',
+    name: 'Classic Executive',
+    description: 'Traditional professional format. Best for corporate & management positions.',
+    imageUrl: 'https://raw.githubusercontent.com/rishavtarway/ProResume/main/Resume_Images/Demo2',
+    features: ['Traditional layout', 'Serif fonts', 'Formal tone', 'References section'],
+  },
+  {
+    id: 'creative',
+    name: 'Creative Design',
+    description: 'Stand out with unique colors and modern styling. Great for design & marketing.',
+    imageUrl: 'https://raw.githubusercontent.com/rishavtarway/ProResume/main/Resume_Images/Demo3',
+    features: ['Accent colors', 'Icon headers', 'Portfolio section', 'Social links'],
+  },
+  {
+    id: 'minimal',
+    name: 'Minimal ATS',
+    description: 'Simple, ATS-friendly format that passes through all applicant tracking systems.',
+    imageUrl: 'https://raw.githubusercontent.com/rishavtarway/ProResume/main/Resume_Images/Demo4.jpeg',
+    features: ['Plain text', 'No graphics', 'Keyword optimized', 'Fast loading'],
+  },
+  {
+    id: 'executive',
+    name: 'Executive Suite',
+    description: 'Premium layout for senior executives. Maximum impact for C-level applications.',
+    imageUrl: 'https://raw.githubusercontent.com/rishavtarway/ProResume/main/Resume_Images/Demo5.jpeg',
+    features: ['Premium design', 'Achievement focused', 'Leadership highlights', 'Board ready'],
+  },
+  {
+    id: 'technical',
+    name: 'Technical Lead',
+    description: 'Developer-focused with code snippets, GitHub links and technical skills emphasis.',
+    imageUrl: 'https://raw.githubusercontent.com/rishavtarway/ProResume/main/Resume_Images/Demo6.jpeg',
+    features: ['Tech skills grid', 'Project links', 'Certifications', 'Code samples'],
+  },
+];
 
 interface TemplatesScreenProps {
   navigation: any;
@@ -10,44 +67,108 @@ interface TemplatesScreenProps {
 export const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
   const { selectedTemplate, setTemplate } = useResumeStore();
 
-  const renderTemplate = ({ item }: { item: any }) => (
-    <TouchableOpacity 
-      style={[styles.templateCard, selectedTemplate?.id === item.id && styles.templateCardSelected]}
-      onPress={() => setTemplate(item)}
-    >
-      <View style={styles.templatePreview}>
-        <Text style={styles.templateEmoji}>
-          {item.id === 'modern' ? '📊' : item.id === 'classic' ? '📜' : item.id === 'creative' ? '🎨' : item.id === 'minimal' ? '⬜' : item.id === 'executive' ? '👔' : '💻'}
-        </Text>
-      </View>
-      <Text style={styles.templateName}>{item.name}</Text>
-      <Text style={styles.templateDesc}>{item.description}</Text>
-      {selectedTemplate?.id === item.id && <View style={styles.selectedBadge}><Text style={styles.selectedText}>✓ Selected</Text></View>}
-    </TouchableOpacity>
-  );
-
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Templates</Text>
-      <Text style={styles.subtitle}>Choose ATS-compliant templates</Text>
-      <FlatList data={templates} renderItem={renderTemplate} keyExtractor={item => item.id} numColumns={2} contentContainerStyle={styles.listContent} />
+      <View style={styles.header}>
+        <Text style={styles.title}>Resume Templates</Text>
+        <Text style={styles.subtitle}>Choose a template that best represents your professional brand</Text>
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.sectionLabel}>TAP TO PREVIEW</Text>
+        
+        <View style={styles.templatesGrid}>
+          {TEMPLATES.map(template => (
+            <TouchableOpacity 
+              key={template.id}
+              style={[styles.templateCard, selectedTemplate?.id === template.id && styles.templateCardSelected]}
+              onPress={() => setTemplate(template)}
+            >
+              <View style={styles.imageContainer}>
+                <Image 
+                  source={{ uri: template.imageUrl }} 
+                  style={styles.templateImage} 
+                  resizeMode="cover"
+                />
+                <View style={styles.imageOverlay}>
+                  <Text style={styles.tapToView}>Tap to select</Text>
+                </View>
+              </View>
+              
+              <View style={styles.templateInfo}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.templateName}>{template.name}</Text>
+                  {selectedTemplate?.id === template.id && (
+                    <View style={styles.selectedBadge}>
+                      <Text style={styles.selectedText}>✓ Selected</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.templateDesc}>{template.description}</Text>
+                
+                <View style={styles.featuresContainer}>
+                  {template.features.map((feature, index) => (
+                    <View key={index} style={styles.featureChip}>
+                      <Text style={styles.featureText}>{feature}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.tipsSection}>
+          <Text style={styles.tipsTitle}>Template Tips</Text>
+          <View style={styles.tipItem}>
+            <Text style={styles.tipIcon}>💡</Text>
+            <Text style={styles.tipText}>Choose a template that matches your industry</Text>
+          </View>
+          <View style={styles.tipItem}>
+            <Text style={styles.tipIcon}>🎯</Text>
+            <Text style={styles.tipText}>Keep it simple - recruiters spend 6-7 seconds scanning</Text>
+          </View>
+          <View style={styles.tipItem}>
+            <Text style={styles.tipIcon}>✅</Text>
+            <Text style={styles.tipText}>Always export as PDF to preserve formatting</Text>
+          </View>
+        </View>
+        
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA', paddingTop: 8 },
-  title: { fontSize: 28, fontWeight: '800', color: '#4A90E2', paddingHorizontal: 16, paddingVertical: 12 },
-  subtitle: { fontSize: 14, color: '#666666', paddingHorizontal: 16, marginBottom: 16 },
-  listContent: { padding: 16 },
-  templateCard: { flex: 1, backgroundColor: '#FFFFFF', padding: 16, borderRadius: 12, margin: 4, alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
-  templateCardSelected: { borderColor: '#4A90E2', backgroundColor: '#E8F0FE' },
-  templatePreview: { width: 80, height: 100, backgroundColor: '#F5F7FA', borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  templateEmoji: { fontSize: 40 },
-  templateName: { fontSize: 16, fontWeight: '700', color: '#1A1A2E' },
-  templateDesc: { fontSize: 11, color: '#666666', textAlign: 'center', marginTop: 4 },
-  selectedBadge: { backgroundColor: '#4A90E2', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginTop: 8 },
-  selectedText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
+  container: { flex: 1, backgroundColor: COLORS.surface },
+  header: { padding: 24, paddingTop: 60, paddingBottom: 24, backgroundColor: COLORS.dark },
+  title: { fontSize: 36, fontWeight: '500', color: COLORS.white, letterSpacing: -0.8 },
+  subtitle: { fontSize: 15, color: COLORS.coolGray, marginTop: 8, lineHeight: 22 },
+  sectionLabel: { fontSize: 12, fontWeight: '600', color: COLORS.coolGray, letterSpacing: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  content: { flex: 1 },
+  templatesGrid: { paddingHorizontal: 16 },
+  templateCard: { backgroundColor: COLORS.white, borderRadius: 20, marginBottom: 20, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent' },
+  templateCardSelected: { borderColor: COLORS.blue, shadowColor: COLORS.blue, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
+  imageContainer: { height: 220, backgroundColor: COLORS.surface, position: 'relative' },
+  templateImage: { width: '100%', height: '100%' },
+  imageOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)', padding: 12, alignItems: 'center' },
+  tapToView: { color: COLORS.white, fontSize: 14, fontWeight: '600' },
+  templateInfo: { padding: 16 },
+  nameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  templateName: { fontSize: 20, fontWeight: '600', color: COLORS.dark },
+  templateDesc: { fontSize: 13, color: COLORS.midSlate, lineHeight: 18, marginBottom: 12 },
+  featuresContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  featureChip: { backgroundColor: COLORS.surface, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999 },
+  featureText: { fontSize: 12, color: COLORS.midSlate, fontWeight: '500' },
+  selectedBadge: { backgroundColor: COLORS.teal, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999 },
+  selectedText: { color: COLORS.white, fontSize: 12, fontWeight: '600' },
+  tipsSection: { margin: 20, padding: 20, backgroundColor: COLORS.dark, borderRadius: 20 },
+  tipsTitle: { fontSize: 18, fontWeight: '600', color: COLORS.white, marginBottom: 16 },
+  tipItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  tipIcon: { fontSize: 16, marginRight: 12 },
+  tipText: { flex: 1, fontSize: 14, color: COLORS.coolGray, lineHeight: 20 },
+  bottomSpacer: { height: 40 },
 });
 
 export default TemplatesScreen;
