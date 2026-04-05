@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useResumeStore } from '../store/resumeStore';
 
 const COLORS = {
@@ -20,42 +20,48 @@ const TEMPLATES = [
     id: 'modern',
     name: 'Modern Pro',
     description: 'Clean, minimalist design with bold typography. Perfect for tech & startup roles.',
-    imageUrl: 'https://github.com/rishavtarway/ProResume/raw/main/Resume_Images/Demo1.jpeg',
+    color: '#494fdf',
+    icon: 'M',
     features: ['Clean layout', 'Bold headers', 'Skill bars', 'Timeline style'],
   },
   {
     id: 'classic',
     name: 'Classic Executive',
     description: 'Traditional professional format. Best for corporate & management positions.',
-    imageUrl: 'https://github.com/rishavtarway/ProResume/raw/main/Resume_Images/Demo2.jpeg',
+    color: '#191c1f',
+    icon: 'C',
     features: ['Traditional layout', 'Serif fonts', 'Formal tone', 'References section'],
   },
   {
     id: 'creative',
     name: 'Creative Design',
     description: 'Stand out with unique colors and modern styling. Great for design & marketing.',
-    imageUrl: 'https://github.com/rishavtarway/ProResume/raw/main/Resume_Images/Demo3.jpeg',
+    color: '#00a87e',
+    icon: 'Cr',
     features: ['Accent colors', 'Icon headers', 'Portfolio section', 'Social links'],
   },
   {
     id: 'minimal',
     name: 'Minimal ATS',
     description: 'Simple, ATS-friendly format that passes through all applicant tracking systems.',
-    imageUrl: 'https://github.com/rishavtarway/ProResume/raw/main/Resume_Images/Demo4.jpeg',
+    color: '#8d969e',
+    icon: 'Mi',
     features: ['Plain text', 'No graphics', 'Keyword optimized', 'Fast loading'],
   },
   {
     id: 'executive',
     name: 'Executive Suite',
     description: 'Premium layout for senior executives. Maximum impact for C-level applications.',
-    imageUrl: 'https://github.com/rishavtarway/ProResume/raw/main/Resume_Images/Demo5.jpeg',
+    color: '#c9a227',
+    icon: 'E',
     features: ['Premium design', 'Achievement focused', 'Leadership highlights', 'Board ready'],
   },
   {
     id: 'technical',
     name: 'Technical Lead',
     description: 'Developer-focused with code snippets, GitHub links and technical skills emphasis.',
-    imageUrl: 'https://github.com/rishavtarway/ProResume/raw/main/Resume_Images/Demo6.jpeg',
+    color: '#2d2d2d',
+    icon: 'T',
     features: ['Tech skills grid', 'Project links', 'Certifications', 'Code samples'],
   },
 ];
@@ -84,12 +90,16 @@ export const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) 
               style={[styles.templateCard, selectedTemplate?.id === template.id && styles.templateCardSelected]}
               onPress={() => setTemplate(template)}
             >
-              <View style={styles.imageContainer}>
-                <Image 
-                  source={{ uri: template.imageUrl }} 
-                  style={styles.templateImage} 
-                  resizeMode="cover"
-                />
+              <View style={[styles.previewContainer, { backgroundColor: template.color }]}>
+                <Text style={styles.previewIcon}>{template.icon}</Text>
+                <View style={styles.previewLines}>
+                  <View style={[styles.previewLine, { backgroundColor: COLORS.white, width: '80%' }]} />
+                  <View style={[styles.previewLine, { backgroundColor: COLORS.white, width: '60%' }]} />
+                  <View style={[styles.previewBox, { backgroundColor: COLORS.white + '40' }]} />
+                  <View style={[styles.previewBox, { backgroundColor: COLORS.white + '40' }]} />
+                  <View style={[styles.previewBox, { backgroundColor: COLORS.white + '40' }]} />
+                  <View style={[styles.previewBox, { backgroundColor: COLORS.white + '40' }]} />
+                </View>
                 <View style={styles.imageOverlay}>
                   <Text style={styles.tapToView}>Tap to select</Text>
                 </View>
@@ -99,7 +109,7 @@ export const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) 
                 <View style={styles.nameRow}>
                   <Text style={styles.templateName}>{template.name}</Text>
                   {selectedTemplate?.id === template.id && (
-                    <View style={styles.selectedBadge}>
+                    <View style={[styles.selectedBadge, { backgroundColor: template.color }]}>
                       <Text style={styles.selectedText}>✓ Selected</Text>
                     </View>
                   )}
@@ -150,8 +160,11 @@ const styles = StyleSheet.create({
   templatesGrid: { paddingHorizontal: 16 },
   templateCard: { backgroundColor: COLORS.white, borderRadius: 20, marginBottom: 20, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent' },
   templateCardSelected: { borderColor: COLORS.blue, shadowColor: COLORS.blue, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
-  imageContainer: { height: 220, backgroundColor: COLORS.surface, position: 'relative' },
-  templateImage: { width: '100%', height: '100%' },
+  previewContainer: { height: 200, padding: 20, justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  previewIcon: { fontSize: 40, fontWeight: '700', color: COLORS.white, marginBottom: 12 },
+  previewLines: { width: '100%', alignItems: 'center' },
+  previewLine: { height: 6, borderRadius: 3, marginBottom: 6 },
+  previewBox: { width: 40, height: 24, borderRadius: 4, marginHorizontal: 4, marginTop: 8 },
   imageOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)', padding: 12, alignItems: 'center' },
   tapToView: { color: COLORS.white, fontSize: 14, fontWeight: '600' },
   templateInfo: { padding: 16 },
@@ -161,7 +174,7 @@ const styles = StyleSheet.create({
   featuresContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   featureChip: { backgroundColor: COLORS.surface, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999 },
   featureText: { fontSize: 12, color: COLORS.midSlate, fontWeight: '500' },
-  selectedBadge: { backgroundColor: COLORS.teal, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999 },
+  selectedBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999 },
   selectedText: { color: COLORS.white, fontSize: 12, fontWeight: '600' },
   tipsSection: { margin: 20, padding: 20, backgroundColor: COLORS.dark, borderRadius: 20 },
   tipsTitle: { fontSize: 18, fontWeight: '600', color: COLORS.white, marginBottom: 16 },
