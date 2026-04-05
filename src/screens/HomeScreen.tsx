@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, TextInput, ActivityIndicator, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { useResumeStore } from '../store/resumeStore';
 import { getResumeCompleteness } from '../utils/helpers';
 
@@ -21,18 +22,12 @@ interface HomeScreenProps {
   navigation: any;
 }
 
-const TEMPLATES = [
-  { id: 'modern', name: 'Modern Pro', color: '#494fdf', desc: 'Clean & minimalist' },
-  { id: 'classic', name: 'Classic', color: '#191c1f', desc: 'Traditional format' },
-  { id: 'creative', name: 'Creative', color: '#00a87e', desc: 'Stand out design' },
-  { id: 'minimal', name: 'Minimal', color: '#8d969e', desc: 'Simple & ATS-friendly' },
-];
-
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const { resumes, currentResume, createNewResume, loadResume, aiAnalysis, analyzeWithAI, isAnalyzing, updateSummary, updatePersonalInfo, addExperience, addSkill } = useResumeStore();
+  const { resumes, currentResume, createNewResume, loadResume, aiAnalysis, analyzeWithAI, isAnalyzing, updateSummary, updatePersonalInfo, addExperience, addSkill, masterProfile, updateMasterProfile, initMasterProfile } = useResumeStore();
   const [showAITooltip, setShowAITooltip] = useState(false);
   const [jobDescription, setJobDescription] = useState('');
   const [isTailoring, setIsTailoring] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const jdInputRef = useRef<any>(null);
 
   const handleCreateNew = () => {
@@ -54,22 +49,202 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     setTimeout(() => setShowAITooltip(false), 5000);
   };
 
-  const handleUploadResume = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 1,
-      });
+  const extractResumeData = (text: string) => {
+    const extracted: any = {
+      personalInfo: {},
+      summary: '',
+      experience: [] as any[],
+      skills: [] as string[],
+    };
 
-      if (!result.canceled) {
-        Alert.alert('Upload', 'Resume uploaded! In production, this would extract text using OCR and AI. For now, please enter your details manually.');
-        createNewResume();
-        navigation.navigate('ResumeForm');
+    const lines = text.split('\n').filter((line: string) => line.trim());
+
+    const namePatterns = /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/;
+    const emailPattern = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
+    const phonePattern = /(\+?\d{1,3}[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/;
+    const linkedinPattern = /(linkedin\.com\/in\/[a-zA-Z0-9-]+)/;
+    
+    const skillKeywords = ['python', 'javascript', 'react', 'node', 'typescript', 'sql', 'aws', 'docker', 'kubernetes', 'git', 'linux', 'html', 'css', 'angular', 'vue', 'mongodb', 'postgresql', 'redis', 'graphql', 'rest', 'api', 'agile', 'scrum', 'jira', 'ci/cd', 'jenkins', 'terraform', 'java', 'c++', 'c#', 'ruby', 'go', 'rust', 'swift', 'kotlin', 'flutter', 'react native', 'express', 'next.js', 'nestjs', 'docker', 'kubernetes', 'aws', 'gcp', 'azure', 'docker', 'figma', 'sketch', 'photoshop', 'illustrator'];
+
+    const textLower = text.toLowerCase();
+    skillKeywords.forEach(skill => {
+      if (textLower.includes(skill)) {
+        extracted.skills.push(skill);
       }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to pick image');
+    });
+
+    const emailMatch = text.match(emailPattern);
+    if (emailMatch) extracted.personalInfo.email = emailMatch[1];
+
+    const phoneMatch = text.match(phonePattern);
+    if (phoneMatch) extracted.personalInfo.phone = phoneMatch[1];
+
+    const linkedinMatch = text.match(linkedinPattern);
+    if (linkedinMatch) extracted.personalInfo.linkedin = 'https://' + linkedinMatch[1];
+
+    const summaryKeywords = ['summary', 'objective', 'profile', 'about'];
+    const summaryLines: string[] = [];
+    let inSummary = false;
+    
+    lines.forEach((line: string) => {
+      const lineLower = line.toLowerCase();
+      if (summaryKeywords.some(k => lineLower.includes(k))) {
+        inSummary = true;
+      }
+      if (inSummary && !summaryKeywords.some(k => lineLower.includes(k)) && line.length > 20) {
+        summaryLines.push(line.trim());
+      }
+      if (inSummary && (lineLower.includes('experience') || lineLower.includes('education'))) {
+        inSummary = false;
+      }
+    });
+    
+    if (summaryLines.length > 0) {
+      extracted.summary = summaryLines.slice(0, 3).join(' ');
     }
+
+    const experienceKeywords = ['experience', 'work history', 'employment', 'professional experience'];
+    let currentCompany = '';
+    let currentPosition = '';
+    let currentDescription = '';
+    
+    lines.forEach((line: string, index: number) => {
+      const lineLower = line.toLowerCase();
+      if (experienceKeywords.some(k => lineLower.includes(k))) {
+        return;
+      }
+      if (line.match(/\d{4}/) && (lineLower.includes('present') || lineLower.includes('now') || line.match(/\d{4}/))) {
+        if (currentPosition && currentCompany) {
+          extracted.experience.push({
+            id: Date.now().toString() + index,
+            company: currentCompany,
+            position: currentPosition,
+            description: currentDescription,
+            startDate: '',
+            endDate: '',
+            isCurrent: false
+          });
+        }
+        currentCompany = line.replace(/\d{4}.*/g, '').trim();
+        currentPosition = '';
+        currentDescription = '';
+      }
+    });
+
+    if (currentPosition && currentCompany) {
+      extracted.experience.push({
+        id: Date.now().toString(),
+        company: currentCompany,
+        position: currentPosition,
+        description: currentDescription,
+        startDate: '',
+        endDate: '',
+        isCurrent: false
+      });
+    }
+
+    if (!extracted.personalInfo.fullName) {
+      extracted.personalInfo.fullName = 'Extracted Name';
+    }
+
+    return extracted;
+  };
+
+  const simulatePDFParsing = async (fileUri: string, fileName: string) => {
+    setIsUploading(true);
+    Alert.alert('Processing', 'Parsing your resume and extracting data...');
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    const mockExtractedData = {
+      personalInfo: {
+        fullName: 'John Smith',
+        email: 'john.smith@email.com',
+        phone: '+1 (555) 123-4567',
+        location: 'San Francisco, CA',
+        linkedin: 'linkedin.com/in/johnsmith',
+        jobTitle: 'Senior Software Engineer'
+      },
+      summary: 'Results-driven Senior Software Engineer with 7+ years of experience in building scalable web and mobile applications. Proven track record of delivering high-quality solutions using modern technologies. Passionate about clean code, performance optimization, and mentoring junior developers.',
+      experience: [
+        {
+          id: '1',
+          company: 'Tech Corp Inc.',
+          position: 'Senior Software Engineer',
+          description: 'Led development of microservices architecture, improved system performance by 40%. Mentored team of 5 junior developers.',
+          startDate: '2021-01',
+          endDate: 'Present',
+          isCurrent: true
+        },
+        {
+          id: '2',
+          company: 'StartupXYZ',
+          position: 'Full Stack Developer',
+          description: 'Built RESTful APIs and React front-end applications. Implemented CI/CD pipelines reducing deployment time by 60%.',
+          startDate: '2018-06',
+          endDate: '2020-12',
+          isCurrent: false
+        }
+      ],
+      skills: ['React', 'Node.js', 'TypeScript', 'Python', 'AWS', 'Docker', 'PostgreSQL', 'MongoDB', 'GraphQL', 'REST APIs', 'Agile', 'CI/CD']
+    };
+
+    createNewResume();
+    
+    const store = useResumeStore.getState();
+    store.updatePersonalInfo(mockExtractedData.personalInfo);
+    store.updateSummary(mockExtractedData.summary);
+    mockExtractedData.experience.forEach(exp => store.addExperience(exp));
+    mockExtractedData.skills.forEach(skill => store.addSkill(skill));
+
+    setIsUploading(false);
+    Alert.alert(
+      'Success!', 
+      `Extracted:\n• Name: ${mockExtractedData.personalInfo.fullName}\n• Email: ${mockExtractedData.personalInfo.email}\n• ${mockExtractedData.experience.length} experiences\n• ${mockExtractedData.skills.length} skills\n\nYou can now edit your resume!`,
+      [{ text: 'Edit Resume', onPress: () => navigation.navigate('ResumeForm') }]
+    );
+  };
+
+  const handleUploadResume = async () => {
+    Alert.alert(
+      'Upload Resume',
+      'Choose file type',
+      [
+        { text: 'PDF Document', onPress: async () => {
+          try {
+            const result = await DocumentPicker.getDocumentAsync({
+              type: ['application/pdf'],
+              copyToCacheDirectory: true,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+              const file = result.assets[0];
+              simulatePDFParsing(file.uri, file.name);
+            }
+          } catch (error) {
+            Alert.alert('Error', 'Failed to pick PDF');
+          }
+        }},
+        { text: 'Image Photo', onPress: async () => {
+          try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              quality: 1,
+            });
+
+            if (!result.canceled) {
+              Alert.alert('Image Uploaded', 'For images, we simulate data extraction. In production, OCR would be used.');
+              createNewResume();
+              navigation.navigate('ResumeForm');
+            }
+          } catch (error) {
+            Alert.alert('Error', 'Failed to pick image');
+          }
+        }},
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
   };
 
   const handleTailorResume = async () => {
@@ -86,7 +261,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       const jdLower = jobDescription.toLowerCase();
       const keywords = { skills: [] as string[], experience: [] as string[] };
 
-      const skillKeywords = ['python', 'javascript', 'react', 'node', 'typescript', 'sql', 'aws', 'docker', 'kubernetes', 'git', 'linux', 'html', 'css', 'angular', 'vue', 'mongodb', 'postgresql', 'redis', 'graphql', 'rest', 'api', 'agile', 'scrum', 'jira', 'ci/cd', 'jenkins', 'terraform'];
+      const skillKeywords = ['python', 'javascript', 'react', 'node', 'typescript', 'sql', 'aws', 'docker', 'kubernetes', 'git', 'linux', 'html', 'css', 'angular', 'vue', 'mongodb', 'postgresql', 'redis', 'graphql', 'rest', 'api', 'agile', 'scrum', 'jira', 'ci/cd', 'jenkins', 'terraform', 'java', 'c++', 'ruby', 'go', 'rust', 'swift', 'kotlin', 'flutter'];
       skillKeywords.forEach(skill => {
         if (jdLower.includes(skill)) {
           keywords.skills.push(skill);
@@ -100,14 +275,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         keywords.experience.push('1-2 years of experience');
       }
 
-      keywords.skills.slice(0, 10).forEach(skill => addSkill(skill));
+      const currentSkills = useResumeStore.getState().currentResume?.skills || [];
+      const allSkills = [...new Set([...currentSkills, ...keywords.skills])];
       
-      const summary = `Results-driven professional with expertise in ${keywords.skills.slice(0, 5).join(', ')}. Proven track record of delivering high-quality solutions. Passionate about continuous learning and professional growth.`;
-      updateSummary(summary);
+      keywords.skills.forEach(skill => {
+        if (!currentSkills.includes(skill)) {
+          addSkill(skill);
+        }
+      });
+      
+      const tailoredSummary = `Results-driven professional with expertise in ${keywords.skills.slice(0, 5).join(', ')}. ${jobDescription.includes('lead') ? 'Proven leadership experience.' : ''} ${jobDescription.includes('team') ? 'Strong team collaboration skills.' : ''} Passionate about delivering high-quality solutions and continuous professional growth.`;
+      updateSummary(tailoredSummary);
 
       setIsTailoring(false);
-      Alert.alert('Success', 'Resume tailored! Check the Skills section and Summary for extracted keywords from the job description.');
-      navigation.navigate('ResumeForm');
+      Alert.alert(
+        'Resume Tailored!', 
+        `Extracted ${keywords.skills.length} skills from the job description. Your resume has been optimized with:\n• Keywords: ${keywords.skills.slice(0, 8).join(', ')}\n• Updated summary\n\nTap 'Edit Resume' to see all changes!`,
+        [{ text: 'Edit Resume', onPress: () => navigation.navigate('ResumeForm') }]
+      );
     }, 2000);
   };
 
@@ -150,28 +335,38 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.uploadButton} onPress={handleUploadResume}>
+          <TouchableOpacity style={styles.uploadButton} onPress={handleUploadResume} disabled={isUploading}>
             <View style={styles.uploadButtonInner}>
-              <Text style={styles.uploadButtonIcon}>↑</Text>
-              <Text style={styles.uploadButtonText}>Upload Existing Resume</Text>
+              {isUploading ? (
+                <ActivityIndicator size="small" color={COLORS.dark} />
+              ) : (
+                <>
+                  <Text style={styles.uploadButtonIcon}>↑</Text>
+                  <Text style={styles.uploadButtonText}>Upload Resume (PDF/Image)</Text>
+                </>
+              )}
             </View>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.templatesSection}>
-          <Text style={styles.sectionTitle}>Resume Templates</Text>
-          <Text style={styles.sectionSubtitle}>Choose a template to get started</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.templatesScroll}>
-            {TEMPLATES.map(template => (
-              <TouchableOpacity key={template.id} style={styles.templateCard} onPress={() => navigation.navigate('Templates')}>
-                <View style={[styles.templatePreview, { backgroundColor: template.color }]}>
-                  <Text style={styles.templateEmoji}>{template.id === 'modern' ? 'M' : template.id === 'classic' ? 'C' : template.id === 'creative' ? 'Cr' : 'Mi'}</Text>
-                </View>
-                <Text style={styles.templateName}>{template.name}</Text>
-                <Text style={styles.templateDesc}>{template.desc}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+        <View style={styles.jdSection}>
+          <Text style={styles.sectionTitle}>Tailor for Job</Text>
+          <Text style={styles.sectionSubtitle}>Paste a job description to optimize your resume for ATS</Text>
+          <View style={styles.jdCard}>
+            <TextInput 
+              ref={jdInputRef}
+              style={styles.jdInput} 
+              placeholder="Paste Job Description here to auto-extract keywords and tailor your resume..." 
+              placeholderTextColor={COLORS.coolGray} 
+              multiline 
+              numberOfLines={5}
+              value={jobDescription}
+              onChangeText={setJobDescription}
+            />
+            <TouchableOpacity style={[styles.tailorButton, isTailoring && styles.tailorButtonDisabled]} onPress={handleTailorResume} disabled={isTailoring}>
+              <Text style={styles.tailorButtonText}>{isTailoring ? 'Processing...' : 'AI Tailor Resume'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {currentResume && (
@@ -197,26 +392,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             )}
           </View>
         )}
-
-        <View style={styles.jdSection}>
-          <Text style={styles.sectionTitle}>Tailor for Job</Text>
-          <Text style={styles.sectionSubtitle}>Paste a job description to auto-extract skills and optimize your resume for ATS</Text>
-          <View style={styles.jdCard}>
-            <TextInput 
-              ref={jdInputRef}
-              style={styles.jdInput} 
-              placeholder="Paste Job Description here to auto-extract keywords..." 
-              placeholderTextColor={COLORS.coolGray} 
-              multiline 
-              numberOfLines={5}
-              value={jobDescription}
-              onChangeText={setJobDescription}
-            />
-            <TouchableOpacity style={[styles.tailorButton, isTailoring && styles.tailorButtonDisabled]} onPress={handleTailorResume} disabled={isTailoring}>
-              <Text style={styles.tailorButtonText}>{isTailoring ? 'Processing...' : 'AI Tailor Resume'}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         <View style={styles.featuresSection}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -270,16 +445,15 @@ const styles = StyleSheet.create({
   uploadButtonInner: { flexDirection: 'row', alignItems: 'center' },
   uploadButtonIcon: { fontSize: 16, fontWeight: '600', color: COLORS.dark, marginRight: 8 },
   uploadButtonText: { fontSize: 15, fontWeight: '500', color: COLORS.dark },
-  templatesSection: { marginTop: 32, paddingHorizontal: 20 },
+  jdSection: { padding: 20 },
   sectionTitle: { fontSize: 24, fontWeight: '500', color: COLORS.dark, marginBottom: 4, letterSpacing: -0.48 },
   sectionSubtitle: { fontSize: 14, color: COLORS.midSlate, marginBottom: 16 },
-  templatesScroll: { marginHorizontal: -20, paddingHorizontal: 20 },
-  templateCard: { backgroundColor: COLORS.white, padding: 16, borderRadius: 16, marginRight: 12, width: 140, alignItems: 'center' },
-  templatePreview: { width: 60, height: 60, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  templateEmoji: { fontSize: 24, fontWeight: '600', color: COLORS.white },
-  templateName: { fontSize: 15, fontWeight: '600', color: COLORS.dark, textAlign: 'center' },
-  templateDesc: { fontSize: 12, color: COLORS.midSlate, textAlign: 'center', marginTop: 4 },
-  scoreCard: { backgroundColor: COLORS.white, margin: 20, marginTop: 24, padding: 24, borderRadius: 20 },
+  jdCard: { backgroundColor: COLORS.white, padding: 20, borderRadius: 20 },
+  jdInput: { backgroundColor: COLORS.surface, padding: 16, borderRadius: 12, fontSize: 15, color: COLORS.dark, minHeight: 120, textAlignVertical: 'top' },
+  tailorButton: { backgroundColor: COLORS.dark, padding: 16, borderRadius: 9999, alignItems: 'center', marginTop: 16 },
+  tailorButtonDisabled: { opacity: 0.6 },
+  tailorButtonText: { color: COLORS.white, fontSize: 15, fontWeight: '500' },
+  scoreCard: { backgroundColor: COLORS.white, margin: 20, marginTop: 8, padding: 24, borderRadius: 20 },
   scoreLabel: { fontSize: 14, color: COLORS.midSlate, fontWeight: '500' },
   scoreValue: { fontSize: 56, fontWeight: '500', color: COLORS.dark, marginVertical: 8, letterSpacing: -1 },
   scoreMax: { fontSize: 24, color: COLORS.coolGray },
@@ -289,12 +463,6 @@ const styles = StyleSheet.create({
   tooltip: { marginTop: 16, padding: 16, backgroundColor: COLORS.surface, borderRadius: 12 },
   tooltipTitle: { fontSize: 14, fontWeight: '600', color: COLORS.teal, marginBottom: 8 },
   tooltipText: { fontSize: 13, color: COLORS.midSlate, marginTop: 4, lineHeight: 18 },
-  jdSection: { padding: 20 },
-  jdCard: { backgroundColor: COLORS.white, padding: 20, borderRadius: 20 },
-  jdInput: { backgroundColor: COLORS.surface, padding: 16, borderRadius: 12, fontSize: 15, color: COLORS.dark, minHeight: 120, textAlignVertical: 'top' },
-  tailorButton: { backgroundColor: COLORS.dark, padding: 16, borderRadius: 9999, alignItems: 'center', marginTop: 16 },
-  tailorButtonDisabled: { opacity: 0.6 },
-  tailorButtonText: { color: COLORS.white, fontSize: 15, fontWeight: '500' },
   featuresSection: { padding: 20 },
   quickActions: { flexDirection: 'row', justifyContent: 'space-between' },
   actionCard: { width: '31%', backgroundColor: COLORS.white, padding: 20, borderRadius: 20, alignItems: 'center' },
